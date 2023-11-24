@@ -1,0 +1,161 @@
+---
+title: "Explore Twinspan results"
+author: "GGM & RR"
+date: "10/11/2021"
+output: 
+  html_notebook:
+    toc: yes
+  
+---
+Use after running a twinspan analysis. The first half of this is advisable to run for first explorations, the rest are tools you can use if need be.
+
+## Libraries
+```{r}
+library(rgdal)
+library(RColorBrewer)
+```
+
+
+# Load extra files
+```{r}
+sample_info<-read.csv("C:/Users/a21448/Havforskningsinstituttet/MAREANO Biotope modelling - General/VideoData/Input/sample_info.csv")
+```
+
+# Outpath
+Save outputs here
+```{r}
+outPath<-"C:/Users/a21448/Havforskningsinstituttet/MAREANO Biotope modelling - General/VideoData/Output/BexTWINSPAN"
+```
+
+
+# Labelled shapefile
+Showing all cut levels and groups for geographic explorations
+
+## Derive classifications
+```{r}
+res <- data.frame(samples, level1 = NA, level2= NA, level3 = NA, level4 = NA, level5 = NA, level6 = NA, level7 = NA, level8= NA, level9 = NA, level10 = NA, level11 = NA, level12 = NA, level13 = NA, level14= NA, level15 = NA)
+
+for(i in 1:15){
+  res[,i+1]<-cut(tw_1, level = i)
+}
+
+f = function(x) length(unique(x))
+lapply(res, FUN = f)
+
+```
+
+## Write some point shapefiles
+```{r}
+result <- SpatialPointsDataFrame(coords = cbind(sample_info$x_coord[match(res$SampID,sample_info$SampID)],
+                                                sample_info$y_coord[match(res$SampID,sample_info$SampID)]),
+                                 proj4string = CRS("+init=epsg:32633"),
+                                 data =  res)
+
+writeOGR(result, dsn = file.path(outPath, "Spatial"), "twinspan_results", driver = "ESRI Shapefile", overwrite_layer = TRUE)
+table(res$level6)
+```
+
+# Dendrograms
+
+## Group node labelled dendrograms
+
+TWINSPAN preferred output with nodes labelled as splits, and groups at the terminus with number of samples. Best output as pdf where you can adjust the size of the paper and then zoom in. May need to adjust widths when rerun.
+
+*Samples*
+```{r}
+plot(tw_1, "quadrat")
+
+pdf(file.path(outPath,"miniDendro_tw1_samples.pdf"), width=200, height=10) #adjust width as necessary
+par(cex=0.7)
+# Do some plotting
+plot(tw_1,"quadrat")
+
+# Close the PDF file's associated graphics device (necessary to finalize the output)
+dev.off()
+```
+
+*Species*
+```{r}
+plot(tw_1,"species")
+
+pdf(file.path(outPath,"miniDendro_tw1_spp.pdf"), width=50, height=10)
+
+# Do some plotting
+plot(tw_1,"species")
+
+# Close the PDF file's associated graphics device (necessary to finalize the output)
+dev.off()
+```
+
+## Dendrograms with labelled leaves (no node labels)
+
+The as.dendrogram plots do not label the nodes with splits, but they do have the quadrats or the species at the terminus leaves. Again best used for reference and if output then make large pdf pages (1 m wide +) so that you can zoom in or print out.
+
+
+NB the species tree is the most useful, keep the samples tree for reference only (not worth printing)
+
+*Samples*
+```{r}
+pdf(file.path(outPath,"giantDendro_tw1_triangle_sampleID.pdf"), width=100, height=10)
+par(cex=0.1, mar=c(10,0,0,0))
+plot(as.dendrogram(tw_1,"quadrat"),type="triangle")
+dev.off()
+```
+
+*Species*
+```{r}
+pdf(file.path(outPath,"giantDendro_tw1_triangle_spp.pdf"), width=100, height=15)
+par(cex=1,mar=c(10,0,0,0))
+plot(as.dendrogram(tw_1,"species"),type="triangle")
+dev.off()
+plot(as.dendrogram(tw_1,"species"),type="triangle")
+
+```
+
+# Heatmap with dendrograms
+This is the best overview for identifying provisional biotopes at present. Needs to be used in tandem with labelled node dendrograms. 
+
+[in future need to work on labelling these dendrograms directly if possible]
+
+```{r}
+colrmp<-rev(brewer.pal(6,"OrRd"))
+image(tw_1, reorder=T,col=colrmp)
+
+# better output to a giant pdf where you can see all quadrats listed
+#par(cexCol=0.2, cexRow=10)
+#par(cex=0.2)
+pdf(file.path(outPath,"giant_heatmap_tw1.pdf"), width=50, height=50)
+image(tw_1, reorder=T, col=colrmp, margins=c(10,10))
+dev.off()
+```
+
+
+-------
+# OPTIONAL TOOLS
+
+## Classification query
+```{r}
+level = 6
+class = 73
+classreport(trimmedwide, res, level, class)
+```
+## Species query
+```{r}
+sp = "lopheliapertusa"
+spquery(trimmedwide, res, sp)
+```
+
+## Extract all samples in a single class
+```{r}
+level = 6
+class = 73
+
+getsamplesingrp(res, level, class)
+
+```
+
+## Make twintable of smaller chunk
+
+```{r}
+twintable(tw_1samp, subset = cut(tw_1samp, 1) == 3, goodspecies = "both")
+```
