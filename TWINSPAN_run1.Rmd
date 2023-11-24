@@ -47,8 +47,9 @@ load(file="C:/Users/a21448/Havforskningsinstituttet/MAREANO Biotope modelling - 
 #TEMPORARY
 #steal the SampID column from env and add it to otu
 
-trimmedwide<-cbind(env$SampID2, otu) %>%
-  rename("SampID2"="env$SampID2")
+trimmedwide<-otu%>%select(SampID, everything())
+
+
 ```
 
 ## Twinspan specific preparations
@@ -60,7 +61,7 @@ colnames(trimmedwide)
 
 ### check number of species per sample
 ```{r}
-sppPerSamp<-trimmedwide %>% mutate(noSpp=rowSums(select_if(., is.numeric)!=0)) %>% select(c("SampID2", "noSpp"))%>% arrange(noSpp)
+sppPerSamp<-trimmedwide %>% mutate(noSpp=rowSums(select_if(., is.numeric)!=0)) %>% select(c("SampID", "noSpp"))%>% arrange(noSpp)
 #MAX NO OF SPP PER SAMP
 message("Maximum number of species per sample")
 max(sppPerSamp$noSpp)
@@ -72,7 +73,7 @@ plot(sppPerSamp$noSpp)
 ## Inspect samples with few spp.
 ```{r}
 fewSppPerSamp<-subset(sppPerSamp,noSpp<2)
-fewSppSamp<-trimmedwide[trimmedwide$SampID2 %in% fewSppPerSamp$SampID2,]
+fewSppSamp<-trimmedwide[trimmedwide$SampID %in% fewSppPerSamp$SampID,]
 fewSppSamp<-fewSppSamp %>%
  select(where(~ any(. != 0)))
 # table of one spp Samples - which species are present - any consistency?
@@ -98,7 +99,7 @@ min(sampPerSp$noSamp)
 ```{r}
  densMaxMean<-trimmedwide %>% rowwise() %>% mutate (
    max=max(c_across(Acesta_excavata:Tubularia)),
-   mean=mean(c_across(Acesta_excavata:Tubularia))) %>% select(SampID2, max, mean)
+   mean=mean(c_across(Acesta_excavata:Tubularia))) %>% select(SampID, max, mean)
 
 plot(densMaxMean$max)
 plot(densMaxMean$mean)
@@ -130,8 +131,8 @@ Turn on or off the filters as you wish
 samples <- trimmedwide 
 
 coredata <- left_join(samples, trimmedwide)
-coredata <- coredata %>% select(-SampID2)
-row.names(coredata) <- samples$SampID2
+coredata <- coredata %>% select(-SampID)
+row.names(coredata) <- samples$SampID
 
 #cutlevels = c(0,100,200,400,1000)
 cutlevelsPaal = c(0,1,2,5,10,20)
@@ -143,7 +144,7 @@ tw_1 <- coredata %>%
 
 #summary(tw_1)
 eval <- misclassified(tw_1)
-eval <- with(eval,  data.frame(SampID = samples$SampID2[index], class = class, predicted = predicted))
+eval <- with(eval,  data.frame(SampID = samples$SampID[index], class = class, predicted = predicted))
 eval
 ```
 ## Save important variables
