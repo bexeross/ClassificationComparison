@@ -1,0 +1,171 @@
+---
+title: "TWINSPAN in classification comparison - R Notebook"
+output: html_notebook
+date: "Last Rendered on `r format(Sys.time(), '%d %B, %Y')`"
+output: 
+  html_notebook: 
+    toc: yes
+    toc_depth: 2
+    toc_float: yes
+    fig_width: 7
+    fig_height: 7
+always_allow_html: true 
+---
+
+
+
+
+
+
+## Libraries
+Load necessary libraries
+```{r}
+# # NB if you need to install twinspan you need to RUN R/RSTUDIO AS ADMINSTRATOR
+# library(devtools)
+# devtools::install_github("jarioksa/twinspan")
+
+#option 2 if that fails
+#install.packages("twinspan", repos="https://jarioksa.github.io/drat/")
+
+###
+
+library(twinspan)
+library(tidyverse)
+library(rgdal)
+library(sf)
+#library(rgeos)
+```
+
+## Load input samples by species data (made by Jonatan in script 01_Video_DataPrep.Rmd here: https://github.com/JonBrox/MAREANO_Video/blob/0dbff93e13319cfd86f2ca4af9cb49285cddc03c/01_Video_DataPrep.Rmd)
+```{r}
+#load otu file
+load(file="C:/Users/a21448/Havforskningsinstituttet/MAREANO Biotope modelling - General/VideoData/Output/otu_Video_All.rda")
+
+#load env file
+load(file="C:/Users/a21448/Havforskningsinstituttet/MAREANO Biotope modelling - General/VideoData/Output/env_Video_All.rda")
+
+#TEMPORARY
+#steal the SampID column from env and add it to otu
+
+trimmedwide<-cbind(env$SampID2, otu) %>%
+  rename("SampID2"="env$SampID2")
+```
+
+## Twinspan specific preparations
+
+### Check species included
+```{r}
+colnames(trimmedwide)
+```
+
+### check number of species per sample
+```{r}
+sppPerSamp<-trimmedwide %>% mutate(noSpp=rowSums(select_if(., is.numeric)!=0)) %>% select(c("SampID2", "noSpp"))%>% arrange(noSpp)
+#MAX NO OF SPP PER SAMP
+message("Maximum number of species per sample")
+max(sppPerSamp$noSpp)
+message("Minimum number of species per sample")
+min(sppPerSamp$noSpp)
+
+plot(sppPerSamp$noSpp)
+```
+## Inspect samples with few spp.
+```{r}
+fewSppPerSamp<-subset(sppPerSamp,noSpp<2)
+fewSppSamp<-trimmedwide[trimmedwide$SampID2 %in% fewSppPerSamp$SampID2,]
+fewSppSamp<-fewSppSamp %>%
+ select(where(~ any(. != 0)))
+# table of one spp Samples - which species are present - any consistency?
+fewSppSamp
+#- nope! 
+```
+
+
+
+
+
+### check number of samples per species
+```{r}
+sampPerSp<-as.data.frame(colSums(trimmedwide[2:175]!=0)) %>% rename("noSamp"="colSums(trimmedwide[2:175] != 0)") %>% arrange(noSamp)
+message("Maximum number of samples per species")
+max(sampPerSp$noSamp)
+message("Minimum number of samples per species")
+min(sampPerSp$noSamp)
+```
+
+
+### check the mean/max density per sample
+```{r}
+ densMaxMean<-trimmedwide %>% rowwise() %>% mutate (
+   max=max(c_across(Acesta_excavata:Tubularia)),
+   mean=mean(c_across(Acesta_excavata:Tubularia))) %>% select(SampID2, max, mean)
+
+plot(densMaxMean$max)
+plot(densMaxMean$mean)
+```
+
+
+
+
+
+## Threshold the number of spp/samp samp/spp
+
+```{r}
+# minNoSppPerSamp<-4
+# minNoSampPerSpp<-4
+
+
+```
+
+
+
+
+# Twinspan
+Perform the twinspan analysis
+
+### Fit the twinspan model
+Turn on or off the filters as you wish
+```{r, warning=FALSE}
+
+samples <- trimmedwide 
+
+coredata <- left_join(samples, trimmedwide)
+coredata <- coredata %>% select(-SampID2)
+row.names(coredata) <- samples$SampID2
+
+#cutlevels = c(0,100,200,400,1000)
+cutlevelsPaal = c(0,1,2,5,10,20)
+
+tw_1 <- coredata %>%
+  select(which(!is.na(colSums(.)))) %>%
+  #mutate_all(sqrt)%>%
+  twinspan(cutlevels = cutlevelsPaal, levmax = 15, groupmin = 4) #change groupmin to 4? (see minNoSampPerSpp)
+
+#summary(tw_1)
+eval <- misclassified(tw_1)
+eval <- with(eval,  data.frame(SampID = samples$SampID2[index], class = class, predicted = predicted))
+eval
+```
+## Save important variables
+```{r}
+save(tw_1,eval, file="twinspResults.rda")
+```
+
+
+
+
+
+## check excluded samples/stations
+outputting for more detailed explorations
+```{r}
+# # excluded<-refer %>% filter(sample_no%in%unique(sample_info$VL)) %>%
+# #   filter(!(sample_no%in%good))
+# # 
+# # write.csv(excluded, file = file.path(outPath, ("excluded_megaAnalysis.csv")))
+# #   
+# 
+# excl.samp<-sample_info %>%
+#   anti_join(tw_1.df, by=c("SampID"="rowname"))%>%
+#   left_join(refer, by=c("VL"="sample_no"))
+# 
+# write.csv(excl.samp, file = file.path(outPath, ("excluded_samples.csv")))
