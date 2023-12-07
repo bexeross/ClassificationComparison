@@ -31,7 +31,7 @@ Load necessary libraries
 
 library(twinspan)
 library(tidyverse)
-library(rgdal)
+#library(rgdal)
 library(sf)
 #library(rgeos)
 ```
@@ -47,12 +47,32 @@ load(file="C:/Users/a21448/Havforskningsinstituttet/MAREANO Biotope modelling - 
 #TEMPORARY
 #steal the SampID column from env and add it to otu
 
-trimmedwide<-otu%>%select(SampID, everything())
+otuwide<-cbind(env$SampID, otu) %>% select(order(colnames(.))) %>% rename("SampID"="env$SampID")
+
+otuwide<-otuwide%>%select(SampID, everything())
+
+#load sample info table
+sample_info<-read.csv("C:/Users/a21448/Havforskningsinstituttet/MAREANO Biotope modelling - General/VideoData/Input/sample_info.csv")
+
+```
+
+
+## REDUCE TO OUR AREA
+
+```{r}
+#load Rnumber table (dbf > csv from Geno's shapefile)
+Rsel<-read.csv("C:/Users/a21448/Havforskningsinstituttet/MAREANO Biotope modelling - General/VideoData/Input/R_stations_comparisonStudy.csv")
+
+# use Rsel$smpl_ to select VLs from sample_Info$VL and use that to select SampID from trimmedwide
+subSampleInfo<-sample_info[sample_info$VL %in% Rsel$smpl_,]
+trimmedwide<-otuwide[otuwide$SampID %in% subSampleInfo$SampID,]
 
 
 ```
 
-## Twinspan specific preparations
+
+
+## EXPLORATIONS
 
 ### Check species included
 ```{r}
@@ -106,7 +126,14 @@ plot(densMaxMean$mean)
 ```
 
 
+## Check where samples are
+```{r}
+trWmeta<-left_join(trimmedwide, sample_info)
 
+plot(trWmeta$x_coord, trWmeta$y_coord)
+```
+
+# TWINSPAN TIME
 
 
 ## Threshold the number of spp/samp samp/spp
@@ -119,10 +146,7 @@ plot(densMaxMean$mean)
 ```
 
 
-
-
-# Twinspan
-Perform the twinspan analysis
+## Perform the twinspan analysis
 
 ### Fit the twinspan model
 Turn on or off the filters as you wish
@@ -130,9 +154,10 @@ Turn on or off the filters as you wish
 
 samples <- trimmedwide 
 
-coredata <- left_join(samples, trimmedwide)
-coredata <- coredata %>% select(-SampID)
+coredata <- trimmedwide
 row.names(coredata) <- samples$SampID
+coredata <- coredata %>% select(-SampID)
+
 
 #cutlevels = c(0,100,200,400,1000)
 cutlevelsPaal = c(0,1,2,5,10,20)
@@ -149,7 +174,7 @@ eval
 ```
 ## Save important variables
 ```{r}
-save(tw_1,eval, file="twinspResults.rda")
+save(tw_1,eval, file="twinspResults_compArea492obs.rda")
 ```
 
 
