@@ -11,7 +11,8 @@ Use after running a twinspan analysis. The first half of this is advisable to ru
 
 ## Libraries
 ```{r}
-library(rgdal)
+library(sf)
+#library(rgdal)
 library(RColorBrewer)
 ```
 
@@ -46,12 +47,21 @@ lapply(res, FUN = f)
 
 ## Write some point shapefiles
 ```{r}
-result <- SpatialPointsDataFrame(coords = cbind(sample_info$x_coord[match(res$SampID,sample_info$SampID)],
-                                                sample_info$y_coord[match(res$SampID,sample_info$SampID)]),
+
+coordsRes<- res %>% left_join(.,sample_info)%>% select(x_coord, y_coord)
+
+
+## edd to remove Roger Bivand dependent code (SpatialPointsDataFrame from SP, writeOGR from rgdal)
+
+result <- SpatialPointsDataFrame(coords = coordsRes, #cbind(sample_info$x_coord[match(res$SampID,sample_info$SampID)],
+                                                #sample_info$y_coord[match(res$SampID,sample_info$SampID)]),
                                  proj4string = CRS("+init=epsg:32633"),
                                  data =  res)
 
-writeOGR(result, dsn = file.path(outPath, "Spatial"), "twinspan_results", driver = "ESRI Shapefile", overwrite_layer = TRUE)
+
+st_write(result, file.path(outPath,"twinspan_results.shp"))
+
+#writeOGR(result, dsn = file.path(outPath, "Spatial"), "twinspan_results", driver = "ESRI Shapefile", overwrite_layer = TRUE)
 table(res$level6)
 ```
 
@@ -65,7 +75,7 @@ TWINSPAN preferred output with nodes labelled as splits, and groups at the termi
 ```{r}
 plot(tw_1, "quadrat")
 
-pdf(file.path(outPath,"miniDendro_tw1_samples.pdf"), width=200, height=10) #adjust width as necessary
+pdf(file.path(outPath,"miniDendro_tw1_492samples.pdf"), width=200, height=10) #adjust width as necessary
 par(cex=0.7)
 # Do some plotting
 plot(tw_1,"quadrat")
@@ -78,7 +88,7 @@ dev.off()
 ```{r}
 plot(tw_1,"species")
 
-pdf(file.path(outPath,"miniDendro_tw1_spp.pdf"), width=50, height=10)
+pdf(file.path(outPath,"miniDendro_tw1_492spp.pdf"), width=50, height=10)
 
 # Do some plotting
 plot(tw_1,"species")
@@ -96,7 +106,7 @@ NB the species tree is the most useful, keep the samples tree for reference only
 
 *Samples*
 ```{r}
-pdf(file.path(outPath,"giantDendro_tw1_triangle_sampleID.pdf"), width=100, height=10)
+pdf(file.path(outPath,"giantDendro_tw1_492triangle_sampleID.pdf"), width=100, height=10)
 par(cex=0.1, mar=c(10,0,0,0))
 plot(as.dendrogram(tw_1,"quadrat"),type="triangle")
 dev.off()
@@ -104,7 +114,7 @@ dev.off()
 
 *Species*
 ```{r}
-pdf(file.path(outPath,"giantDendro_tw1_triangle_spp.pdf"), width=100, height=15)
+pdf(file.path(outPath,"giantDendro_tw1_492triangle_spp.pdf"), width=100, height=15)
 par(cex=1,mar=c(10,0,0,0))
 plot(as.dendrogram(tw_1,"species"),type="triangle")
 dev.off()
@@ -124,7 +134,7 @@ image(tw_1, reorder=T,col=colrmp)
 # better output to a giant pdf where you can see all quadrats listed
 #par(cexCol=0.2, cexRow=10)
 #par(cex=0.2)
-pdf(file.path(outPath,"giant_heatmap_tw1.pdf"), width=50, height=50)
+pdf(file.path(outPath,"giant_heatmap492_tw1.pdf"), width=50, height=50)
 image(tw_1, reorder=T, col=colrmp, margins=c(10,10))
 dev.off()
 ```
